@@ -289,8 +289,6 @@ warnings.filterwarnings("ignore")
 logit = logging.getLogger("logit")
 
 # define success message level
-# note the lambda method erroneously prints and if self.isEnabledFor generates EOL errors
-# so should be commented out lines changed to function below
 logging.SUCCESS = 25  # between WARNING and INFO
 logging.addLevelName(logging.SUCCESS, 'SUCCESS')
 def success(self, message, *args, **kwargs):
@@ -300,7 +298,6 @@ def success(self, message, *args, **kwargs):
         self._log(logging.SUCCESS, message, args, **kwargs)
 
 logging.Logger.success = success
-#logging.Logger.success = lambda self, message, *args, **kwargs: self._log(logging.SUCCESS, message, args, **kwargs) if self.isEnabledFor(logging.success)
 
 logging.ENFORCED = 100
 logging.addLevelName(logging.ENFORCED, 'ENFORCED')
@@ -311,7 +308,6 @@ def enforced(self, message, *args, **kwargs):
         self._log(logging.ENFORCED, message, args, **kwargs)
 
 logging.Logger.enforced = enforced
-#logging.Logger.enforced = lambda self, message, *args, **kwargs: self._log(logging.ENFORCED, message, args, **kwargs)
 
 if args.v >= 6:
     logit.setLevel(logging.DEBUG)
@@ -452,7 +448,6 @@ def dictWalker(d, indent=-4, u=None):
 def buildComponentSets(wb, drmJson=None, suuIso=None):
     """Build component sets to match -wb selections."""
     logit.debug("Entering def {}:".format(str(sys._getframe().f_code.co_name)))
-    # wb = sorted(wb, key=lambda x: whichbits)
     CSets = {}
 
     # if displayOnly with no components, reset wb to full component set from whichBits keys
@@ -503,8 +498,6 @@ def buildComponentSets(wb, drmJson=None, suuIso=None):
 
 
 # set base url locations for the catalog download
-#baseURLs['dl'] = 'https://dl.dell.com'
-#baseURLs['downloads'] = 'https://downloads.dell.com'
 baseURLs = ('https://downloads.dell.com','https://dl.dell.com')
 catalogURL = {
     'DRMVersion Info': 'https://downloads.dell.com/catalog/DRMVersion.tar.gz'}
@@ -689,23 +682,7 @@ if __name__ == "__main__":
     if float(sys.version[:3]) < 3.7:
         logit.warning("This script has not been tested on below Python 3.7")
 
-    # logit test - output only selected level and higher
-    #logit.debug("Debug")
-    #logit.info("Info")
-    #logit.success("Success")
-    #logit.warning("Warning")
-    #logit.error("Error")
-    #logit.critical("Critical")
-    #logit.enforced("Enforced")
-
-    #if args.dm and 'display-Only' not in args.wb:
-    #    logit.info("Download Mode: Multiples")
-
-    #if not args.dm and 'display-Only' not in args.wb:
-    #    logit.info("Download Mode: Serially")
-
     if args.pa: logit.info("Proxy Address Specified: " + args.pa)
-
     if args.pu: logit.infog("Proxy User Specified: "  + args.pa)
 
     # Log Debug Info Messages regarding paramters selected
@@ -725,8 +702,6 @@ if __name__ == "__main__":
     # implement an alternate approach in the same code.
     globalProxySessionSetup(args.pa, args.pu)
 
-    # run catalog get and extract as one liner
-    #if 'drm' in args.wb or 'plugin' in args.wb or args.wb == 'displayOnly':
     # check for string partial match or args.wb only having displayOnly and no other value
     if [a for a in args.wb if a.startswith('drm') or a.startswith('plug')] or (len(args.wb) == 1 and 'displayOnly' in args.wb):
         jsonCatalog = extractJsonFromGzip(download(catalogURL))
@@ -736,7 +711,6 @@ if __name__ == "__main__":
         suupage=download(suuWebPageURL)
 
         ###get SUU landing page###
-        ## need if statement to determine if should retreive
         html = BeautifulSoup(suupage,'lxml')
         targetTable = html.select('table.table.table-striped.table-bordered') #target table
         soupTable = BeautifulSoup(str(targetTable), 'lxml')
@@ -778,16 +752,10 @@ if __name__ == "__main__":
             suuLinkMap[link]['Download Link'] = soupTable.find('a').get('href')
         ### End Get SUU ISO Links
 
-    # w=dictWalker(whichbits)
-    # argswb=dictWalker(args.wb)
-    #if ('drm' in args.wb or 'plugin' in args.wb) and not 'suu' in args.wb:
-    #if [a for a in args.wb if (a.startswith('drm') or a.startswith('plugin')) and not a.startswith('suu')]:
     if len(args.wb) == 1 and 'displayOnly' in args.wb:
         cSets = buildComponentSets(args.wb, jsonCatalog, suuLinkMap)
     elif (any('drm' or 'plug' in a for a in args.wb) and (all('suu' not in a for a in args.wb))):
         cSets = buildComponentSets(args.wb, drmJson=jsonCatalog)
-    #elif (not 'drm' in args.wb and not 'plugin' in args.wb) and 'suu' in args.wb:
-    #elif [a for a in args.wb if (not (a.startswith('drm') and a.startswith('plugin'))) and a.startswith('suu')]:
     elif (any('drm' or 'plug' not in a for a in args.wb) and (all('suu' in a for a in args.wb))):
         cSets = buildComponentSets(args.wb, suuISO=suuLinkMap)
     else:
