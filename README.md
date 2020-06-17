@@ -64,3 +64,6 @@ python getDellRepoManComponentsAndISOs.py -l -v -wb displayOnly drminstaller-lin
 
 ## EXAMPLE:
 python getDellRepoManComponentsAndISOs.py -wb drminstaller-windows suu-windows plugins -pa 192.168.268.254:3128
+
+## AUTHOR:
+Adam Maltby
