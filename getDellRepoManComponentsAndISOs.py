@@ -15,7 +15,7 @@
 #
 """
 SYNOPSIS:
-    getDRMplugins is designed to get DRM Compoenent links or download.
+    getDellRepoManComponentsAndISOs is designed to get DRM Compoenent links or download.
 
 DESCRIPTION:
     Designed for sites where DRM sits in a dark site (no internet) and
