@@ -623,7 +623,7 @@ def download(urls, saveTo=None, chunkSize=8192):
                         logit.error(errR)
                         i =+ 1
                     except downloadFailedWithoutStatusCode as errD:
-                        logit.Error(errD.message)
+                        logit.error(errD)
                         i =+ 1
                     except:
                         logit.error(traceback.print_exc())
@@ -639,7 +639,7 @@ def extractJsonFromGzip(gzdata):
     with tarfile.open(fileobj=BytesIO(gzdata), mode='r:gz') as t:
         logit.debug('Extracting gz')
         f = t.getmember('DRMVersion.json')
-        #print(f.name)
+        # print(f.name)
         j = loads(t.extractfile(f).read().decode('utf-8'))
         logit.debug('Extracted info: {}'.format(j))
         t.close()
