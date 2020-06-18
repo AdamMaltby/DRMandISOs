@@ -171,7 +171,7 @@ class downloadFailedWithoutStatusCode(Error):
         super().__init__(self.message)
 
     def __str__(self):
-        return {}.format(message)
+        return self.message
 
 
 class RawAndDefaultsFormatter(argparse.ArgumentDefaultsHelpFormatter,
@@ -195,7 +195,7 @@ arggrp_logging.add_argument(
 arggrp_logging.add_argument("-l", "--logfile", help='''Log output to file, in same directory as script. Logging will rotate every 1mb of logging unless deleted. Logging level will be based on -v argument.''', action="store_true", dest='l')
 
 arggrp_downloads = parser.add_argument_group('Component Download Options')
-arggrp_downloads.add_argument("-dp", "--downloadToPath", default="{}".format(os.path.dirname(__file__)), action='store',
+arggrp_downloads.add_argument("-dp", "--downloadToPath", default="{}".format(os.path.dirname(os.path.abspath(__file__))), action='store',
                               help='''If unset or used but no path specified, saves will default to this script launch directory. Ignored if -wb argument contains display-Only option.''', dest='dp')
 # whichBits to tie in with whichbits list below ion help and set above for actual items
 parser.add_argument("-wb", "--whichBits", default='display-Only', nargs='*', metavar='Component', choices=whichbits.keys(), action='store', help='''Supplied as a space separated list. Default is displayOnly.''', dest='wb')
@@ -560,7 +560,7 @@ def download(urls, saveTo=None, chunkSize=8192):
         else:
             if not os.path.exists(saveTo):
                 logit.warning("Save path specified does not exist, defaulting to current script directory.")
-                saveTo = os.path.dirname(__file__)
+                saveTo = os.path.dirname(os.path.abspath(__file__))
 
             fName = os.path.basename(urls[url])
             saveAs = os.path.join(saveTo, fName)
@@ -607,7 +607,7 @@ def download(urls, saveTo=None, chunkSize=8192):
                                 try:
                                     os.rename(saveAs+'.downloading', saveAs)
                                 except IOError as errIO:
-                                    logit.error('Could not rename {} to {}. {}'.format(saveAs+'.downloading',saveAs, errIO.message))
+                                    logit.error('Could not rename {} to {}. {}'.format(saveAs+'.downloading',saveAs, errIO))
 
                         #r.raise_for_status()
                     except requests.exceptions.HTTPError as errH:
@@ -720,7 +720,7 @@ if __name__ == "__main__":
             th=htr.findAll('th')
             for td in th:
                 colIdx[td.text.strip()] = th.index(td)
-        logit.debug('colIdx=', colIdx)
+        logit.debug('colIdx='+colIdx)
 
         suuLinkMap={}
         tbody = soupTable.find('tbody')
@@ -736,7 +736,7 @@ if __name__ == "__main__":
                 else:
                     suuLinkMap[o_s].update({ci:cells[colIdx[ci]].text.strip()})
 
-        logit.debug('suuLinkMap=',suuLinkMap)
+        logit.debug('suuLinkMap='+suuLinkMap)
         ### end suu landing page ###
 
         ### Get SUU ISO Page Links based on args in SUU type
@@ -757,7 +757,7 @@ if __name__ == "__main__":
     elif (any('drm' or 'plug' in a for a in args.wb) and (all('suu' not in a for a in args.wb))):
         cSets = buildComponentSets(args.wb, drmJson=jsonCatalog)
     elif (any('drm' or 'plug' not in a for a in args.wb) and (all('suu' in a for a in args.wb))):
-        cSets = buildComponentSets(args.wb, suuISO=suuLinkMap)
+        cSets = buildComponentSets(args.wb, suuIso=suuLinkMap)
     else:
         cSets = buildComponentSets(args.wb, jsonCatalog, suuLinkMap)
 
