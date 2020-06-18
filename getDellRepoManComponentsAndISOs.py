@@ -720,7 +720,7 @@ if __name__ == "__main__":
             th=htr.findAll('th')
             for td in th:
                 colIdx[td.text.strip()] = th.index(td)
-        logit.debug("colIdx: "+colIdx)
+        logit.debug("colIdx: "+str(colIdx))
 
         suuLinkMap={}
         tbody = soupTable.find('tbody')
@@ -736,7 +736,7 @@ if __name__ == "__main__":
                 else:
                     suuLinkMap[o_s].update({ci:cells[colIdx[ci]].text.strip()})
 
-        logit.debug("suuLinkMap: "+suuLinkMap)
+        logit.debug("suuLinkMap: "+str(suuLinkMap))
         ### end suu landing page ###
 
         ### Get SUU ISO Page Links based on args in SUU type
