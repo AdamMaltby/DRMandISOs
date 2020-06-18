@@ -639,7 +639,7 @@ def extractJsonFromGzip(gzdata):
     with tarfile.open(fileobj=BytesIO(gzdata), mode='r:gz') as t:
         logit.debug('Extracting gz')
         f = t.getmember('DRMVersion.json')
-        #print(f.name)
+        # print(f.name)
         j = loads(t.extractfile(f).read().decode('utf-8'))
         logit.debug('Extracted info: {}'.format(j))
         t.close()
