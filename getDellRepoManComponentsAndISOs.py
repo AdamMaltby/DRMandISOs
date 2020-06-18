@@ -623,7 +623,7 @@ def download(urls, saveTo=None, chunkSize=8192):
                         logit.error(errR)
                         i =+ 1
                     except downloadFailedWithoutStatusCode as errD:
-                        logit.error(errD.message)
+                        logit.error(errD)
                         i =+ 1
                     except:
                         logit.error(traceback.print_exc())
