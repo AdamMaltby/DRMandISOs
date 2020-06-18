@@ -130,7 +130,4 @@ dmypy.json
 
 #vscode workspace settings
 .code-workspace
-.vscode
-.vscode/launch.json
-.vscode/settings.json
 .vscode/.ropeproject

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"workbench.colorCustomizations": {
+			"tab.activeBorder": "#0056a2"
+		},
+		"peacock.color": "#003B6F"
+	}
+}
