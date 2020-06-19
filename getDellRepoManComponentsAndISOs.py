@@ -753,16 +753,20 @@ if __name__ == "__main__":
         ### End Get SUU ISO Links
 
     if len(args.wb) == 1 and 'displayOnly' in args.wb:
+        # no params specified so get all
         cSets = buildComponentSets(args.wb, jsonCatalog, suuLinkMap)
     elif (any('drm' or 'plug' in a for a in args.wb) and (all('suu' not in a for a in args.wb))):
+        # if has drm or plugins specified but not suu
         cSets = buildComponentSets(args.wb, drmJson=jsonCatalog)
     elif (any('drm' or 'plug' not in a for a in args.wb) and (all('suu' in a for a in args.wb))):
+        # if only has suu specified
         cSets = buildComponentSets(args.wb, suuIso=suuLinkMap)
     else:
+        # fallback get all
         cSets = buildComponentSets(args.wb, jsonCatalog, suuLinkMap)
 
     #downloads = dictWalker(cSets)
-    if len(args.wb) == 1 and 'displayOnly' in args.wb:
+    if 'displayOnly' in args.wb:
         dictWalker2(cSets) # print to screen
     else:
         logit.debug('Collated Components to Download')
