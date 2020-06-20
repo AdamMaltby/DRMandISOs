@@ -42,6 +42,7 @@ import tarfile
 import warnings
 import traceback
 from copy import copy
+from enum import Enum
 from io import BytesIO
 from json import loads
 from time import sleep
@@ -154,11 +155,11 @@ whichbits = {'displayOnly': 'The default choice if the argument is not passed.\n
              'suu-windows': 'Display or download the SUU for Windows inband and oob firmware updates'}
 
 
-class Error(Exception):
-    """Base class for manually custom errors"""
+#class Error(Exception):
+#    """Base class for manually custom errors"""
 
 
-class downloadFailedWithoutStatusCode(Error):
+class DownloadFailedWithoutStatusCode(requests.RequestException):
     """
     We will Raise this when an unknown download error occurs.
 
@@ -171,6 +172,9 @@ class downloadFailedWithoutStatusCode(Error):
         super().__init__(self.message)
 
     def __str__(self):
+        return self.message
+
+    def __repr__(self):
         return self.message
 
 
@@ -299,6 +303,7 @@ def success(self, message, *args, **kwargs):
 
 logging.Logger.success = success
 
+
 logging.ENFORCED = 100
 logging.addLevelName(logging.ENFORCED, 'ENFORCED')
 def enforced(self, message, *args, **kwargs):
@@ -392,19 +397,39 @@ def dictWalker2(d, indent=-4):
         else:
             logit.error("Data type {} not recognized: {}.{}={}".format(type(v), ".".join(dpath), k, v))
 
+class DictWalkerMode(Enum):
+    """
+    A class to validate the dictWalker mode.
 
-def dictWalker(d, indent=-4, u=None):
+    Ensures mode passed to dictWalker matched one of the predefined
+    values listed in this class. Otherwise dictWalker will not work.
+    Overrides _missing_ so if value is not passed, returns display
+    mode.... junt in case I have a blank moment and for the prop...
+    """
+
+    display = 'display'
+    dictBuild = 'dictBuild'
+
+    @classmethod
+    def _missing_(cls, value):
+        return DictWalkerMode.display
+
+
+def dictWalker(d, dwMode=DictWalkerMode, u=None, indent=-4):
     """
     Loops through data supplied to determine structure.
 
-    Examines the content of dicts and lists recursively. Insert custom actions in each if as required inside the if/elifs.
-    IN this case we have added process to update a recursive dictionary.
+    Examines the content of dicts and lists recursively to build out the
+    filtered list of requirements.
+    Insert custom actions in each if as required inside the if/elifs.
+    In this build we have added process to update a recursive dictionary
+    or just simply print to screen based on the mode.
     """
     indent += 4
     if indent == 0:
-        logit.debug("Entering def {}:".format(str(sys._getframe().f_code.co_name)))
+        logit.debug("Entering: def {}({}, {}, {}, {})".format(str(sys._getframe().f_code.co_name), d, str(dwMode), u, indent))
     else:
-        logit.debug("Entering def {}: Recursive level {}".format(str(sys._getframe().f_code.co_name), indent // 4))
+        logit.debug("Entering: def {}({}, {}, {}, {}): Recursive level {}".format(str(sys._getframe().f_code.co_name), d, str(dwMode), u, indent, indent // 4))
 
     if u:
         logit.debug('Updating variable u with: {}'.format(u))
@@ -417,10 +442,14 @@ def dictWalker(d, indent=-4, u=None):
     for k, v in d.items():
         if isinstance(v, str) or isinstance(v, int) or isinstance(v, float):
             dpath.append(k)
-            p = ".".join(dpath)
-            logit.debug("Updating u variable with {}={}".format(p, v))
-            u.update({p:v})
-            # print(("{}={}".format(".".join(path), v)))
+            if dwMode.value == 'dictBuild':
+                p = ".".join(dpath)
+                logit.debug("Updating u variable with {}={}".format(p, v))
+                u.update({p:v})
+            elif dwMode.value == 'display':
+                logit.debug("{}={}".format(".".join(dpath), v))
+                print(indent * ' ', "{} {} = {}".format(TxtFormat.symbols.arrow_curved_down_right, k, v))
+                # print(("{}={}".format(".".join(path), v)))
             dpath.pop()
         elif v is None:
             dpath.append(k)
@@ -429,24 +458,37 @@ def dictWalker(d, indent=-4, u=None):
             dpath.pop()
         elif isinstance(v, list):
             dpath.append(k)
-            for v_int in v:
-                logit.debug('Recursing into dictWalker with params; {}. {}. {}'.format(v_int, indent, u))
-                dictWalker(v_int, indent, u)
+            if dwMode.value == 'dictBuild':
+                for v_int in v:
+                    logit.debug('Recursing into dictWalker passing params; {}, {}, {}, {}'.format(v_int, str(dwMode), u, indent))
+                    dictWalker(v_int, DictWalkerMode.dictBuild, u=u, indent=indent)
+            elif dwMode.value == 'display':
+                for v_int in v:
+                    logit.debug('Recursing into dictWalker with params; {}, {}, {}'.format(v_int, str(dwMode), indent))
+                    dictWalker(v_int, DictWalkerMode.display, indent=indent)
             dpath.pop()
         elif isinstance(v, dict):
             dpath.append(k)
-            logit.debug('Recursing into dictWalker with params; {}. {}. {}'.format(v, indent, u))
-            u.update(dictWalker(v, indent, u))
+            if dwMode.value == 'dictBuild':
+                logit.debug('Recursing into dictWalker passing params; {}, {}, {}, {}'.format(v, str(dwMode), u, indent))
+                u.update(dictWalker(v, DictWalkerMode.dictBuild, u=u, indent=indent))
+            elif dwMode.value == 'display':
+                print(indent * " ", "{} {}".format(TxtFormat.symbols.arrow_curved_down_right, k))
+                logit.debug('Recursing into dictWalker with params; {}, {}, {}'.format(v, str(dwMode), indent))
+                dictWalker(v, DictWalkerMode.display, indent=indent)
             dpath.pop()
         else:
             logit.error("Data type {} not recognized: {}.{}={}".format(type(v), ".".join(dpath), k, v))
 
-    logit.debug("Exiting def {}".format(str(sys._getframe().f_code.co_name)))
+    if indent == 0:
+        logit.debug("Exiting def {}".format(str(sys._getframe().f_code.co_name)))
+    else:
+        logit.debug("Exiting def {}: Recursive level {}".format(str(sys._getframe().f_code.co_name), indent // 4))
     return u
 
 
 def buildComponentSets(wb, drmJson=None, suuIso=None):
-    """Build component sets to match -wb selections."""
+    """Build component sets from json and web scrapes to match -wb selections."""
     logit.debug("Entering def {}:".format(str(sys._getframe().f_code.co_name)))
     CSets = {}
 
@@ -454,7 +496,8 @@ def buildComponentSets(wb, drmJson=None, suuIso=None):
     if len(wb) == 1 and "displayOnly" in wb:
         wb = list(whichbits.keys())
 
-    drmJsonBaseLocation = "https://"+jsonCatalog['RMPlugins']['_baselocation']+"/"
+    if drmJson: drmJsonBaseLocation = "https://"+jsonCatalog['RMPlugins']['_baselocation']+"/"
+
     for k in wb:
         if k in whichbits:
             # make shift switch equivalent. Pass dictionary portions to walker process to get relevant k/v pairs for whichbits/wb sets
@@ -493,7 +536,7 @@ def buildComponentSets(wb, drmJson=None, suuIso=None):
                 CSets['DRM Installer'].update({"Linux 64 bit":drmJson['AppUpdateInfo']['LinuxInstaller']})
         else:
             logit.critical("Given there are plenty of checks in place for component selection, if you have got here then something has gone horribly wrong... whichBits option {} not recognised. Exiting,".format(k))
-            sys.exit
+            sys.exit(1)
     return CSets
 
 
@@ -532,31 +575,36 @@ def download(urls, saveTo=None, chunkSize=8192):
                     logit.info('First download failed. Swapping URL Location to {}'.format(url))
                 # if we are dealing with the suu pages scrape on second iteration, note url is dynamic discovery so may not match a set variable, hence the static text.
                 elif i == 1 and 'dell.com/support' in url:
-                    # force i = 2 and hard exit since we cannot continue without the web scrape info, there is no alternate URL for these.
-                    #i = 2
-                    logit.critical('All URL sources failed. Exiting script.')
-                    sys.exit()
+                    logit.critical('URL source failed. Exiting script.')
+                    sys.exit(1)
                 try:
                     if i == 1:
                         logit.info('Original URL failed, trying alternate URL {}'.format(url))
                     r = s.get(url, stream=True)
                     logit.success('Content retreived to RAM.')
                     return r.content
-                except requests.exceptions.HTTPError as errH:
-                    logit.error("HTTP Error "+ errH)
+                except (requests.exceptions.HTTPError,
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.Timeout,
+                        requests.exceptions.RequestException,
+                        requests.exceptions.ChunkedEncodingError,
+                        requests.execptions.ContentDecodingError,
+                        requests.exceptions.ProxyError,
+                        requests.exceptions.SSLError,
+                        requests.exceptions.InvalidURL,
+                        requests.exceptions.InvalidHeader,
+                        requests.exceptions.InvalidProxyURL,
+                        requests.expceptions.RetryError,
+                        DownloadFailedWithoutStatusCode) as err:
+                    print('')
+                    logit.error(repr(err))
                     i =+ 1
-                except requests.exceptions.ConnectionError as errC:
-                    logit.error("Connection Error: " + errC)
+                    r = None
+                except:
+                    print('')
+                    logit.error(traceback.print_exc())
                     i =+ 1
-                except requests.exceptions.Timeout as errT:
-                    logit.error("Timeout: " + errT)
-                    i =+ 1
-                except downloadFailedWithoutStatusCode as errD:
-                    logit.Error(errD.message)
-                    i =+ 1
-                except requests.exceptions.RequestException as errR:
-                    logit.error(errR)
-                    i =+ 1
+                    r=None
         else:
             if not os.path.exists(saveTo):
                 logit.warning("Save path specified does not exist, defaulting to current script directory.")
@@ -601,33 +649,42 @@ def download(urls, saveTo=None, chunkSize=8192):
                                 logit.error('{} download incomplete. Received {} bytes, expected {}, missing {}.'.format(fName, receivedLength, expectedLength, expectedLength - receivedLength))
                                 logit.debug('Last http status before failure was: {}'.format(r.status_code))
                                 r.raise_for_status()
-                                raise downloadFailedWithoutStatusCode()
+                                raise DownloadFailedWithoutStatusCode()
                             else:
                                 logit.success('{} downloaded.'.format(fName))
                                 try:
                                     os.rename(saveAs+'.downloading', saveAs)
-                                except IOError as errIO:
-                                    logit.error('Could not rename {} to {}. {}'.format(saveAs+'.downloading',saveAs, errIO))
-
+                                except IOError as err:
+                                    logit.error('Could not rename {} to {}'.format(saveAs+'.downloading',saveAs)) # should be picked up by IOError
+                                    logit.error(repr(err))
+                                except:
+                                    logit.error('Could not rename {} to {}'.format(saveAs+'.downloading',saveAs)) # should be picked up by IOError
+                                    logit.error(repr(err))
                         #r.raise_for_status()
-                    except requests.exceptions.HTTPError as errH:
-                        logit.error("HTTP Error "+ errH)
+                    except (requests.exceptions.HTTPError,
+                            requests.exceptions.ConnectionError,
+                            requests.exceptions.Timeout,
+                            requests.exceptions.RequestException,
+                            requests.exceptions.ChunkedEncodingError,
+                            requests.execptions.ContentDecodingError,
+                            requests.exceptions.ProxyError,
+                            requests.exceptions.SSLError,
+                            requests.exceptions.InvalidURL,
+                            requests.exceptions.InvalidHeader,
+                            requests.exceptions.InvalidProxyURL,
+                            requests.expceptions.RetryError,
+                            IOError,
+                            EnvironmentError,
+                            DownloadFailedWithoutStatusCode) as err:
+                        print('')
+                        logit.error(repr(err))
                         i =+ 1
-                    except requests.exceptions.ConnectionError as errC:
-                        logit.error("Connection Error: " + errC)
-                        i =+ 1
-                    except requests.exceptions.Timeout as errT:
-                        logit.error("Timeout: " + errT)
-                        i =+ 1
-                    except requests.exceptions.RequestException as errR:
-                        logit.error(errR)
-                        i =+ 1
-                    except downloadFailedWithoutStatusCode as errD:
-                        logit.error(errD)
-                        i =+ 1
+                        r = None
                     except:
+                        print('')
                         logit.error(traceback.print_exc())
                         i =+ 1
+                        r=None
                 if i == 2:
                     #Move on to next file. Not hard exit since we may still get the rest.
                     logit.error('All URL sources failed for {}'.format(url))
@@ -639,10 +696,11 @@ def extractJsonFromGzip(gzdata):
     with tarfile.open(fileobj=BytesIO(gzdata), mode='r:gz') as t:
         logit.debug('Extracting gz')
         f = t.getmember('DRMVersion.json')
-        # print(f.name)
+        logit.debug("Got {} from extracted gz".format(f.name))
         j = loads(t.extractfile(f).read().decode('utf-8'))
         logit.debug('Extracted info: {}'.format(j))
         t.close()
+        logit.debug("Returning var j from def {}:".format(str(sys._getframe().f_code.co_name)))
         return j
 
 
@@ -683,7 +741,7 @@ if __name__ == "__main__":
         logit.warning("This script has not been tested on below Python 3.7")
 
     if args.pa: logit.info("Proxy Address Specified: " + args.pa)
-    if args.pu: logit.infog("Proxy User Specified: "  + args.pa)
+    if args.pu: logit.info("Proxy User Specified: "  + args.pa)
 
     # Log Debug Info Messages regarding paramters selected
     if args.l:
@@ -740,10 +798,12 @@ if __name__ == "__main__":
         ### end suu landing page ###
 
         ### Get SUU ISO Page Links based on args in SUU type
+        # Get landing page links
         for link in suuLinkMap:
             logit.info("Link extracted "+suuLinkMap[link]['Download Link'])
             suuLinkMap[link]['Download Link'] = download({link:suuLinkMap[link]['Download Link']})
 
+        # Follow landing page links to get ISO links
         for link in suuLinkMap:
             html = BeautifulSoup(suuLinkMap[link]['Download Link'],'lxml')
             targetTable = html.select('div.my-5:nth-child(1) > div:nth-child(5) > div:nth-child(2) > div:nth-child(1) > div:nth-child(2) > a:nth-child(1)') #target table
@@ -767,16 +827,19 @@ if __name__ == "__main__":
 
     #downloads = dictWalker(cSets)
     if 'displayOnly' in args.wb:
-        dictWalker2(cSets) # print to screen
+        #dictWalker2(cSets) # print to screen
+        dictWalker(cSets, DictWalkerMode.display)
     else:
         logit.debug('Collated Components to Download')
         #logit.debug(dictWalker2(cSets))
-        dictWalker2(cSets)  # print to screen
+        #dictWalker2(cSets)  # print to screen
+        dictWalker(cSets, DictWalkerMode.display)
         logit.enforced('About to start auto download. Waiting for 10 seconds for user cancellation.')
         try:
             sleep(10)
             #download(downloads, args.dp)
-            download(dictWalker(cSets), args.dp)
+            #download(dictWalker(cSets), args.dp)
+            download(dictWalker(cSets, DictWalkerMode.dictBuild), args.dp)
         except KeyboardInterrupt:
             logit.critical('User Cancelled Operations. Exiting.')
             sys.stderr = open(os.devnull, 'w')
