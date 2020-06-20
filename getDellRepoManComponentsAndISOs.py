@@ -354,48 +354,6 @@ if args.v == 0:
     logit.enforced("Logging level not set at CLI. Defaulting to {} level output. ENFORCED messages will always be shown.".format(ln.upper()))
 
 
-def dictWalker2(d, indent=-4):
-    """
-    Loops through data supplied to determine structure.
-
-    Examines the content of dicts and lists recursively. Insert custom actions in each if as required inside the if/elifs.
-    IN this case we are literally just using this to output dict data to screen.
-    """
-    indent += 4
-    if indent == 0:
-        logit.debug("Entering def {}:".format(str(sys._getframe().f_code.co_name)))
-    else:
-        logit.debug("Entering def {}: Recursive level {}".format(str(sys._getframe().f_code.co_name), indent // 4))
-    global dpath
-
-    # cehe
-    for k, v in d.items():
-        if isinstance(v, str) or isinstance(v, int) or isinstance(v, float):
-            dpath.append(k)
-            logit.debug("{}={}".format(".".join(dpath), v))
-            # print(indent * ' ' + "|-> " + k, end=' ')
-            print(indent * ' ', "{} {} = {}".format(TxtFormat.symbols.arrow_curved_down_right, k, v))
-            # print(("{}={}".format(".".join(path), v)))
-            dpath.pop()
-        elif v is None:
-            dpath.append(k)
-            # nothing to do for this particular script. Will/Should never get called.
-            logit.warning("dictWalker2 got passed a key with no value information from {}. Depending on the data being walked this might cause issues further in to execution.".format(k))
-            dpath.pop()
-        elif isinstance(v, list):
-            dpath.append(k)
-            for v_int in v:
-                logit.debug('Recursing into dictWalker with params; {}. {}.'.format(v_int, indent))
-                dictWalker2(v_int, indent)
-            dpath.pop()
-        elif isinstance(v, dict):
-            dpath.append(k)
-            print(indent * " ", "{} {}".format(TxtFormat.symbols.arrow_curved_down_right, k))
-            logit.debug('Recursing into dictWalker2 with params; {}. {}.'.format(v, indent))
-            dictWalker2(v, indent)
-            dpath.pop()
-        else:
-            logit.error("Data type {} not recognized: {}.{}={}".format(type(v), ".".join(dpath), k, v))
 
 class DictWalkerMode(Enum):
     """
@@ -652,7 +610,6 @@ def download(urls, saveTo=None, chunkSize=8192):
                                 raise DownloadFailedWithoutStatusCode()
                             else:
                                 logit.success('{} downloaded.'.format(fName))
-<<<<<<< HEAD
                                 try:
                                     os.rename(saveAs+'.downloading', saveAs)
                                 except IOError as err:
@@ -661,11 +618,6 @@ def download(urls, saveTo=None, chunkSize=8192):
                                 except:
                                     logit.error('Could not rename {} to {}'.format(saveAs+'.downloading',saveAs)) # should be picked up by IOError
                                     logit.error(repr(err))
-=======
-                                os.rename(saveAs+'.downloading', saveAs)
-                                logit.error('Could not rename {} to {}'.format(saveAs+'.downloading',saveAs))
->>>>>>> 5c2c58bfbd9fefb63052482794455915345fcbe1
-                        #r.raise_for_status()
                     except (requests.exceptions.HTTPError,
                             requests.exceptions.ConnectionError,
                             requests.exceptions.Timeout,
@@ -844,11 +796,7 @@ if __name__ == "__main__":
             sleep(10)
             #download(downloads, args.dp)
             #download(dictWalker(cSets), args.dp)
-<<<<<<< HEAD
             download(dictWalker(cSets, DictWalkerMode.dictBuild), args.dp)
-=======
-            download(dictWalker(cSets, DictWalkerMode.dictBuild))
->>>>>>> 5c2c58bfbd9fefb63052482794455915345fcbe1
         except KeyboardInterrupt:
             logit.critical('User Cancelled Operations. Exiting.')
             sys.stderr = open(os.devnull, 'w')
