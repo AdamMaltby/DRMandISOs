@@ -546,13 +546,13 @@ def download(urls, saveTo=None, chunkSize=8192):
                         requests.exceptions.Timeout,
                         requests.exceptions.RequestException,
                         requests.exceptions.ChunkedEncodingError,
-                        requests.execptions.ContentDecodingError,
+                        requests.exceptions.ContentDecodingError,
                         requests.exceptions.ProxyError,
                         requests.exceptions.SSLError,
                         requests.exceptions.InvalidURL,
                         requests.exceptions.InvalidHeader,
                         requests.exceptions.InvalidProxyURL,
-                        requests.expceptions.RetryError,
+                        requests.exceptions.RetryError,
                         DownloadFailedWithoutStatusCode) as err:
                     print('')
                     logit.error(repr(err))
@@ -623,13 +623,13 @@ def download(urls, saveTo=None, chunkSize=8192):
                             requests.exceptions.Timeout,
                             requests.exceptions.RequestException,
                             requests.exceptions.ChunkedEncodingError,
-                            requests.execptions.ContentDecodingError,
+                            requests.exceptions.ContentDecodingError,
                             requests.exceptions.ProxyError,
                             requests.exceptions.SSLError,
                             requests.exceptions.InvalidURL,
                             requests.exceptions.InvalidHeader,
                             requests.exceptions.InvalidProxyURL,
-                            requests.expceptions.RetryError,
+                            requests.exceptions.RetryError,
                             IOError,
                             EnvironmentError,
                             DownloadFailedWithoutStatusCode) as err:
