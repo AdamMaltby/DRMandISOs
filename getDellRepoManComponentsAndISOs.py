@@ -12,7 +12,10 @@
 # By downloading any software from the Dell website via this script, you
 # accept the terms of the Dell Software License Agreement:
 # https://www.dell.com/learn/us/en/uscorp1/terms-of-sale-consumer-license-agreements
-#
+
+#TODO: Threaded downloads
+#TODO: Add PSBI
+
 """
 SYNOPSIS:
     getDellRepoManComponentsAndISOs is designed to get DRM Compoenent links or download.
@@ -448,6 +451,7 @@ def dictWalker(d, dwMode=DictWalkerMode, u=None, indent=-4):
 def buildComponentSets(wb, drmJson=None, suuIso=None):
     """Build component sets from json and web scrapes to match -wb selections."""
     logit.debug("Entering def {}:".format(str(sys._getframe().f_code.co_name)))
+    logit.debug("Param values received: {}, {}, {}".format(wb, str(drmJson),str(suuIso)))
     CSets = {}
 
     # if displayOnly with no components, reset wb to full component set from whichBits keys
@@ -495,6 +499,8 @@ def buildComponentSets(wb, drmJson=None, suuIso=None):
         else:
             logit.critical("Given there are plenty of checks in place for component selection, if you have got here then something has gone horribly wrong... whichBits option {} not recognised. Exiting,".format(k))
             sys.exit(1)
+    logit.debug("Returning: {}:".format(str(CSets)))
+    logit.debug("Exiting def {}:".format(str(sys._getframe().f_code.co_name)))
     return CSets
 
 
@@ -510,6 +516,7 @@ def download(urls, saveTo=None, chunkSize=8192):
     """Download the item(s) passed in via urls paramter lst."""
 
     logit.debug("Entering def {}:".format(str(sys._getframe().f_code.co_name)))
+    logit.debug("Param values received: {}, {}, {}".format(str(urls),saveTo,chunkSize))
     global s
 
     for url in urls:
@@ -518,79 +525,42 @@ def download(urls, saveTo=None, chunkSize=8192):
         else:
             logit.info('Accessing ' + urls[url] + ' via direct internet connection')
 
-        if not saveTo:
-            # anything not saved to disk goes straught to memory, only catalogs and webscrape retreivals use this.
-            i = 0
-            r = None
-            url = urls[url]
+        if saveTo and not os.path.exists(saveTo):
+            logit.warning("Save path specified does not exist, defaulting to current script directory.")
+            saveTo = os.path.dirname(os.path.abspath(__file__))
+
+        if saveTo:
+            fName = os.path.basename(urls[url])
+            saveAs = os.path.join(saveTo, fName)
+
+        i = 0
+        r = None
+        url = urls[url]
+        if saveTo and os.path.exists(saveAs):
+            logit.enforced("Skipping {}. File already exists in target directory.".format(fName))
+        else:
             while not r and i < 2:
-                # if we are dealing with the catalog file on second iteration
-                if i == 1 and os.path.basename(url) == os.path.basename(catalogURL):
+                if i == 1 and 'dell.com/support' in url:
+                    logit.critical('Scrape URL source failed. Cannot continue without this. Exiting script.')
+                    sys.exit(1)
+                elif i == 1:
                     if baseURLs[0] in url:
                         url = url.replace(baseURLs[0], baseURLs[1])
                     elif baseURLs[1] in url:
                         url = url.replace(baseURLs[1], baseURLs[0])
-                    logit.info('First download failed. Swapping URL Location to {}'.format(url))
-                # if we are dealing with the suu pages scrape on second iteration, note url is dynamic discovery so may not match a set variable, hence the static text.
-                elif i == 1 and 'dell.com/support' in url:
-                    logit.critical('URL source failed. Exiting script.')
-                    sys.exit(1)
-                try:
+                    logit.warning('Switching download source after error to {}'.format(url))
+                try:  # try download, catch is for remote server errors only, not early download termination due to issues script side.
                     if i == 1:
                         logit.info('Original URL failed, trying alternate URL {}'.format(url))
-                    r = s.get(url, stream=True)
-                    logit.success('Content retreived to RAM.')
-                    return r.content
-                except (requests.exceptions.HTTPError,
-                        requests.exceptions.ConnectionError,
-                        requests.exceptions.Timeout,
-                        requests.exceptions.RequestException,
-                        requests.exceptions.ChunkedEncodingError,
-                        requests.exceptions.ContentDecodingError,
-                        requests.exceptions.ProxyError,
-                        requests.exceptions.SSLError,
-                        requests.exceptions.InvalidURL,
-                        requests.exceptions.InvalidHeader,
-                        requests.exceptions.InvalidProxyURL,
-                        requests.exceptions.RetryError,
-                        DownloadFailedWithoutStatusCode) as err:
-                    print('')
-                    logit.error(repr(err))
-                    i =+ 1
-                    r = None
-                except:
-                    print('')
-                    logit.error(traceback.print_exc())
-                    i =+ 1
-                    r=None
-        else:
-            if not os.path.exists(saveTo):
-                logit.warning("Save path specified does not exist, defaulting to current script directory.")
-                saveTo = os.path.dirname(os.path.abspath(__file__))
-
-            fName = os.path.basename(urls[url])
-            saveAs = os.path.join(saveTo, fName)
-            i = 0
-            r = None
-            url = urls[url]
-            if os.path.exists(saveAs)                                                                        :
-                logit.enforced("Skipping {}. File already exists in target directory.".format(fName))
-            else:
-                while not r and i < 2:
-                    if i == 1:
-                        if baseURLs[0] in url:
-                            url = url.replace(baseURLs[0], baseURLs[1])
-                        elif baseURLs[1] in url:
-                            url = url.replace(baseURLs[1], baseURLs[0])
-                    try:  # try download, catch is for remote server errors only, not early download termination due to issues script side.
-                        if i == 1:
-                            logit.info('Original URL failed, trying alternate URL {}'.format(url))
-                        logit.info('Making Header request to get file size for {} and check file is available for download.'.format(fName))
-                        r = s.get(url, stream=True).headers
-                        expectedLength = int(r['Content-Length'])  # .headers.get('content-length')
-                        logit.info("Expected Content Download Size: " + str(expectedLength))
-                        with s.get(url, stream=True, timeout=60) as r:
-                            with open(saveAs+'.downloading', 'wb') as f:
+                    logit.info('Making Header request to URL {} for availability and content size.'.format(url))
+                    r = s.get(url, stream=True).headers
+                    expectedLength = int(r['Content-Length'])  # .headers.get('content-length')
+                    logit.info("Expected Content Download Size: " + str(expectedLength))
+                    with s.get(url, stream=True, timeout=60) as r:
+                        if saveTo and saveAs is not None:
+                            tmpFileName = saveAs+'.downloading'
+                            with open(tmpFileName, 'wb') as f:
+                                logit.info("Created placeholder download file: {}".format(saveAs+'.downloading'))
                                 for chunk in r.iter_content(chunk_size=chunkSize):
                                     if chunk:
                                         f.write(chunk)
@@ -611,45 +581,53 @@ def download(urls, saveTo=None, chunkSize=8192):
                             else:
                                 logit.success('{} downloaded.'.format(fName))
                                 try:
-                                    os.rename(saveAs+'.downloading', saveAs)
+                                    os.rename(tmpFileName, saveAs)
                                 except IOError as err:
-                                    logit.error('Could not rename {} to {}'.format(saveAs+'.downloading',saveAs)) # should be picked up by IOError
+                                    logit.error('Could not rename {} to {}'.format(tmpFileName,saveAs)) # should be picked up by IOError
                                     logit.error(repr(err))
                                 except:
-                                    logit.error('Could not rename {} to {}'.format(saveAs+'.downloading',saveAs)) # should be picked up by IOError
                                     logit.error(repr(err))
-                    except (requests.exceptions.HTTPError,
-                            requests.exceptions.ConnectionError,
-                            requests.exceptions.Timeout,
-                            requests.exceptions.RequestException,
-                            requests.exceptions.ChunkedEncodingError,
-                            requests.exceptions.ContentDecodingError,
-                            requests.exceptions.ProxyError,
-                            requests.exceptions.SSLError,
-                            requests.exceptions.InvalidURL,
-                            requests.exceptions.InvalidHeader,
-                            requests.exceptions.InvalidProxyURL,
-                            requests.exceptions.RetryError,
-                            IOError,
-                            EnvironmentError,
-                            DownloadFailedWithoutStatusCode) as err:
-                        print('')
-                        logit.error(repr(err))
-                        i =+ 1
-                        r = None
-                    except:
-                        print('')
-                        logit.error(traceback.print_exc())
-                        i =+ 1
-                        r=None
-                if i == 2:
-                    #Move on to next file. Not hard exit since we may still get the rest.
-                    logit.error('All URL sources failed for {}'.format(url))
+                        else:
+                            logit.success('Content retreived to RAM.')
+                            logit.debug("Exiting def {}:".format(str(sys._getframe().f_code.co_name)))
+                            return r.content
+                except (requests.exceptions.HTTPError,
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.Timeout,
+                        requests.exceptions.RequestException,
+                        requests.exceptions.ChunkedEncodingError,
+                        requests.exceptions.ContentDecodingError,
+                        requests.exceptions.ProxyError,
+                        requests.exceptions.SSLError,
+                        requests.exceptions.InvalidURL,
+                        requests.exceptions.InvalidHeader,
+                        requests.exceptions.InvalidProxyURL,
+                        requests.exceptions.RetryError,
+                        IOError,
+                        EnvironmentError,
+                        DownloadFailedWithoutStatusCode) as err:
+                    print('')
+                    logit.error(repr(err))
+                    i =+ 1
+                    r = None
+                except KeyboardInterrupt:
+                    logit.critical("Keyboard Interrupt by user. Exiting script.")
+                    sys.exit(1)
+                except:
+                    print('')
+                    logit.error(traceback.print_exc())
+                    i =+ 1
+                    r=None
+            if i == 2:
+                #Move on to next file. Not hard exit since we may still get the rest.
+                logit.error('All URL sources failed for {}'.format(url))
+                logit.debug("Exiting def {}:".format(str(sys._getframe().f_code.co_name)))
 
 
 def extractJsonFromGzip(gzdata):
     """Extract gzip file to memory for json data retreival."""
     logit.debug("Entering def {}:".format(str(sys._getframe().f_code.co_name)))
+    logit.debug("Param value received: {}".format(gzdata))
     with tarfile.open(fileobj=BytesIO(gzdata), mode='r:gz') as t:
         logit.debug('Extracting gz')
         f = t.getmember('DRMVersion.json')
@@ -664,6 +642,7 @@ def extractJsonFromGzip(gzdata):
 def globalProxySessionSetup(proxy=None, proxyuser=None):
     """Create global proxy setup and return any necessary session keys if required."""
     logit.debug("Entering def {}:".format(str(sys._getframe().f_code.co_name)))
+    logit.debug("Param values received: {}, {}".format(proxy, proxyuser))
     global proxylist
     global proxypass
     global s
@@ -681,6 +660,7 @@ def globalProxySessionSetup(proxy=None, proxyuser=None):
         auth = requests.auth.HTTPProxyAuth(proxyuser, proxypass)
         s.auth = auth
         logit.debug('Received Proxy Credentials')
+    logit.debug("Exiting def {}:".format(str(sys._getframe().f_code.co_name)))
 
 
 # main

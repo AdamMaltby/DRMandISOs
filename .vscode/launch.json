@@ -13,7 +13,7 @@
             "cwd": "${workspaceRoot}",
             "env": {"PYTHONPATH": "${workspaceRoot}"},
             "logToFile": true,
-            "args": ["-wb", "suu-linux", "drminstaller-linux", "plugins", "-vvvvvv", "-l"]
+            "args": ["-wb", "drminstaller-linux", "suu-linux", "-vvvvvv", "-l"]
         },
         {
             "name": "Debug Unit Test",
