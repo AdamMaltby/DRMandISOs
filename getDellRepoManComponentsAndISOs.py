@@ -611,6 +611,7 @@ def download(urls, saveTo=None, chunkSize=8192):
                     i =+ 1
                     r = None
                 except KeyboardInterrupt:
+                    print('')
                     logit.critical("Keyboard Interrupt by user. Exiting script.")
                     sys.exit(1)
                 except:
